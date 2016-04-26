@@ -13,6 +13,9 @@
 #include <fstream>
 #include <map>
 #include <list>
+
+#define K 22
+
 using namespace std;
 
 class Sequence {
@@ -53,28 +56,54 @@ class Bucket {
 		int getSeqCount() {
 			return seqList.size();
 		}
+		list<Sequence*> getSeqList() {
+			return seqList;
+		}
 	private:
 		list<Sequence*> seqList;
 		list<Read*> readList;
 };
 
 map<string, Bucket*> getBucketList(char * filename);
+void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile);
 		
 
 int main(int argc, char* argv[]) {
 	//All this should be deleted, just messing around with file I/O
-	if (argc == 2) {
+	if (argc == 3) {
 		map<string, Bucket*> b = getBucketList(argv[1]);
-		for (map<string, Bucket*>::iterator iter = b.begin(); iter != b.end(); ++iter) {
-			int seqCount = iter->second->getSeqCount();
-			if (seqCount > 100) {
-				cout << iter->first << " => " << seqCount << endl;
-			}
-		}
+		distributeReads(b, argv[1], argv[2]);
 	}else {
-		cout << "must pass in sequences file" << endl;
+		cout << "Usage: " << argv[0] << " <sequence file> <reads file>" << endl;
 	}
 	return 0;
+}
+
+void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile) {
+	ifstream seqs;
+	seqs.open(seqFile);
+	ifstream reads;
+	reads.open(readFile);
+	int poopoopoo = 0;
+	for (map<string, Bucket*>::iterator bucket = bList.begin(); bucket != bList.end(); ++bucket) {
+		list<Sequence*> seqList = bucket->second->getSeqList();
+		string sequence;
+		for (list<Sequence*>::iterator seq = seqList.begin(); seq != seqList.end(); ++seq) {
+			seqs.seekg((*seq)->getLocation());
+			string line;
+			getline(seqs, line);
+			sequence += line;
+		}
+		int seqSize = sequence.size();
+		string* kmerList = new string[seqSize - K + 1];
+		for (int i = 0; i < seqSize - K + 1; i++) {
+			kmerList[i] = sequence.substr(i, K);
+		}
+		delete[] kmerList;
+		cout << bucket->second->speciesId << endl;
+	}
+	seqs.close();
+	reads.close();
 }
 
 map<string, Bucket*> getBucketList(char * filename) {
@@ -115,7 +144,9 @@ map<string, Bucket*> getBucketList(char * filename) {
 				bucketList.insert(pair<string, Bucket*>(speciesId, b));
 			}
 		}else{
-			Sequence* s = new Sequence(sequenceId, speciesId, seqs.tellg(), desc);
+			long int currLoc = seqs.tellg();
+			currLoc -= (line.size()+1)*sizeof(char);
+			Sequence* s = new Sequence(sequenceId, speciesId, currLoc, desc);
 			bucketList.at(speciesId)->insertSequence(s);
 		}
 		count++;
