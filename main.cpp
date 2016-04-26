@@ -71,6 +71,8 @@ int main(int argc, char* argv[]) {
 				cout << iter->first << " => " << seqCount << endl;
 			}
 		}
+	}else {
+		cout << "must pass in sequences file" << endl;
 	}
 	return 0;
 }
