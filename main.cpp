@@ -13,11 +13,10 @@
 #include <fstream>
 #include <map>
 #include <list>
-#include <vector>
 #include <algorithm>
 
 
-#define K 12
+#define K 22
 #define M 3
 
 using namespace std;
@@ -72,8 +71,14 @@ class Bucket {
 		int getSeqCount() {
 			return seqList.size();
 		}
+		int getReadCount() {
+			return readList.size();
+		}
 		list<Sequence*> getSeqList() {
 			return seqList;
+		}
+		void insertRead(Read* read) {
+			readList.push_back(read);
 		}
 	private:
 		list<Sequence*> seqList;
@@ -82,10 +87,10 @@ class Bucket {
 
 map<string, Bucket*> getBucketList(char * filename);
 void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile);
-bool binarySearch(vector<string> *arr, vector<string>::iterator start, vector<string>::iterator end, string query);
+bool extends(int readPos, string read, long int seqPos, ifstream* seqs);
 
-		
-
+//////////////////////////////////////////////////////
+///////////////// MAIN ///////////////////////////////
 int main(int argc, char* argv[]) {
 	//Check that we have two inputs
 	if (argc == 3) {
@@ -107,66 +112,87 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 	for (map<string, Bucket*>::iterator bucket = bList.begin(); bucket != bList.end(); ++bucket) {
 		//get the list of sequences from this bucket
 		list<Sequence*> seqList = bucket->second->getSeqList();
-		vector<string> *kmerList = new vector<string>;
+		map<string, long int> *kmerList = new map<string, long int>;
 		for (list<Sequence*>::iterator seq = seqList.begin(); seq != seqList.end(); ++seq) {
-			seqs.seekg((*seq)->getLocation());
+			long int location = (*seq)->getLocation();
+			seqs.seekg(location);
 			string line;
 			getline(seqs, line);
 			long int seqSize = line.size() - K + 1;
-			string *kmers = new string[seqSize];
+			//string *kmers = new string[seqSize];
 			for (long int i = 0; i < seqSize; i++) {
-				kmers[i] = line.substr(i, K);
+				kmerList->insert(pair<string, long int>( line.substr(i, K), location+i) );
 			}
-			kmerList->insert(kmerList->begin(), kmers, kmers + seqSize);
-			delete[] kmers;
+			//kmerList->insert(kmerList->begin(), kmers, kmers + seqSize);
+			//delete[] kmers;
 		}
-		sort(kmerList->begin(), kmerList->end());
+		//sort(kmerList->begin(), kmerList->end());
 		string read;
 		string label;
+		long int readLocation;
 		ifstream reads;
 		reads.open(readFile);
-		while ( getline(reads, read)) {
-			if (read[0] != '>'){
+		while ( getline(reads, read)) { //loop through every line of reads file
+			if (read[0] != '>'){ //if this is the actual nucleotide sequence
 				unsigned int sel = 0;
-				string q = read.substr(read.size() - K, K);
-				while((sel+1)*K < read.size()) {
-					if(binarySearch(kmerList, kmerList->begin(), kmerList->end(), q)) {
-						//cout << q << "-" << sel <<  " " << label << endl;
+				string q = read.substr(0, K);
+				while((sel+1)*K < read.size()) { //loop through every K sized chunk of the read
+					
+					//try to find the current read in the kmer list
+					map<string, long int>::iterator kmer = kmerList->find(q);
+					//if it exists and it extends*
+					if (kmer != kmerList->end() && extends(sel*K, read, kmer->second, &seqs)) {
+						//we create the read object and insert it into the current bucket and break.
+						Read * r = new Read(label.substr(0, label.find(" ")), readLocation);
+						bucket->second->insertRead(r);
 						break;
 					}
-					q = read.substr(sel*K, K);
-					sel++;
+					q = read.substr(++sel*K, K);
 				}
-			}else {
+			}else { // this is the sequence identifier
+				//getting our location+1 in the file is the address of the read we store in the object
+				readLocation = reads.tellg();
+				readLocation += sizeof(char);
 				label = read;
 			}
 		}
 		reads.close();
 		delete kmerList;
-		cout << counter << ") " << bucket->second->getSeqCount() << endl;
+		cout << "Bucket " << counter << ") " << bucket->second->getReadCount() << endl;
 		counter++;
 	}
 	seqs.close();
 }
 
-bool binarySearch(vector<string> *arr, vector<string>::iterator start, vector<string>::iterator end, string query) {
-	int length = end - start;
-	if (length <= 1) {
-		return (arr->at(0) == query);
-	}else {
-		int half = length / 2;
-		string val = arr->at(half);
-		if (query == val) {
-			return true;
-		}else if (query < val) {
-			return binarySearch(arr, start, start+half, query);
-		}else {
-			return binarySearch(arr, start+half, end, query);
+//extends* function, checks if a read extends w/ M mismatches
+bool extends(int readPos, string read, long int seqPos, ifstream* seqs) {
+	//get the "would be" position of the read in the sequence
+	seqs->seekg(seqPos - readPos);
+	//get our string read as a classic char * C string
+	const char * cread = read.c_str();
+	int readSize = read.size();
+	char * segment = new char[readSize];
+	//get the read-length segment of the corresponding sequence
+	seqs->read(segment, readSize);
+	int mm = 0;
+	//for every position in the read/sequence
+	for (int i = 0; i < readSize; i++) {
+		if (i == readPos) {//if this is the K-sized segment from our seed match
+			i += K; //skip ahead and don't check it again, OPTIMIZED!
+		}else if (cread[i] != segment[i]) { //else if the current chars are mismatch
+			mm++;	//add one mismatch
+			if (mm > M) {	//if we blew our top on mismatches
+				//get the hell outta there, we don't extend.
+				delete[] segment;
+				return false;
+			}
 		}
 	}
+	//we made it out unscathed, we extend.
+	delete[] segment;
+	return true;
 }
-		
-
+	
 
 //build map of speciesId to Bucket pointer from a fasta file
 map<string, Bucket*> getBucketList(char * filename) {
