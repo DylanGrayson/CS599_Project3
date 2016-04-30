@@ -14,6 +14,7 @@
 #include <map>
 #include <list>
 #include <algorithm>
+#include <thread>
 #include "Binning.hpp"
 
 #define K 22
@@ -45,6 +46,11 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 	seqs.open(seqFile);
 	// for each bucket in our bucket list
 	int counter = 0;
+
+	// For threading we might be able to take the entire contents of this for loop,
+	// and create a new function that takes in relevant data as inputs.
+	// For each iteration of the thread we can start a new thread?
+
 	for (map<string, Bucket*>::iterator bucket = bList.begin(); bucket != bList.end(); ++bucket) {
 		//get the list of sequences from this bucket
 		list<Sequence*> seqList = bucket->second->getSeqList();
