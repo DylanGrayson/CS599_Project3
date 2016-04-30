@@ -2,9 +2,9 @@
  * Dylan Grayson
  * Conner Swann
  * Brandon Paree
- * 
+ *
  * CS599 Project 3
- * 
+ *
  * Phylogenetic / Metagenomic Binning
 ******/
 
@@ -14,76 +14,12 @@
 #include <map>
 #include <list>
 #include <algorithm>
-
+#include "Binning.hpp"
 
 #define K 22
 #define M 3
 
 using namespace std;
-
-
-//Sequence Class contains a long int sequenceLoc that gets passed to 
-//file.seekg() to get the actual sequence.
-class Sequence {
-	public:
-		string sequenceId;
-		string	speciesId;
-		string description;
-		long int getLocation() {
-			return this->sequenceLoc;
-		}
-		Sequence(string seqId, string species, long int location, string desc) {
-			sequenceId = seqId;
-			speciesId = species;
-			sequenceLoc = location;
-			description = desc;
-		}
-	private:
-		long int sequenceLoc;
-};
-
-//Read class
-class Read {
-	public:
-		string readId;
-		long int getLocation() {
-			return this->readLoc;
-		}
-		Read(string rId, long int location) {
-			readId = rId;
-			readLoc = location;
-		}
-	private:
-		long int readLoc;
-};
-		
-//Bucket class contains a sequence list and a reads list
-class Bucket {
-	public:
-		string speciesId;
-		Bucket(string species) {
-			speciesId = species;
-		}
-		int insertSequence(Sequence * seq) {
-			seqList.push_back(seq);
-			return seqList.size();
-		}
-		int getSeqCount() {
-			return seqList.size();
-		}
-		int getReadCount() {
-			return readList.size();
-		}
-		list<Sequence*> getSeqList() {
-			return seqList;
-		}
-		void insertRead(Read* read) {
-			readList.push_back(read);
-		}
-	private:
-		list<Sequence*> seqList;
-		list<Read*> readList;
-};
 
 map<string, Bucket*> getBucketList(char * filename);
 void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile);
@@ -137,7 +73,7 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 				unsigned int sel = 0;
 				string q = read.substr(0, K);
 				while((sel+1)*K < read.size()) { //loop through every K sized chunk of the read
-					
+
 					//try to find the current read in the kmer list
 					map<string, long int>::iterator kmer = kmerList->find(q);
 					//if it exists and it extends*
@@ -192,7 +128,7 @@ bool extends(int readPos, string read, long int seqPos, ifstream* seqs) {
 	delete[] segment;
 	return true;
 }
-	
+
 
 //build map of speciesId to Bucket pointer from a fasta file
 map<string, Bucket*> getBucketList(char * filename) {
@@ -201,7 +137,7 @@ map<string, Bucket*> getBucketList(char * filename) {
 	map<string, Bucket*> bucketList;
 	map<string, Bucket*>::iterator iter;
 	string line;
-	
+
 	string sequenceId;
 	string speciesId;
 	string desc;
@@ -231,7 +167,7 @@ map<string, Bucket*> getBucketList(char * filename) {
 			}
 			iter = bucketList.find(speciesId);
 			if (iter == bucketList.end()) { //if species id doesn't exists in map yet
-				
+
 				Bucket * b = new Bucket(speciesId); //make new bucket
 				bucketList.insert(pair<string, Bucket*>(speciesId, b)); //and insert it in the map
 			}
@@ -242,7 +178,7 @@ map<string, Bucket*> getBucketList(char * filename) {
 			//current location is at the end of the sequence, so we set
 			//it to the beginning
 			currLoc -= (line.size()+1)*sizeof(char);
-			
+
 			//create new sequence
 			Sequence* s = new Sequence(sequenceId, speciesId, currLoc, desc);
 			//and add it to the bucket
@@ -253,4 +189,3 @@ map<string, Bucket*> getBucketList(char * filename) {
 	seqs.close();
 	return bucketList;
 }
-	
