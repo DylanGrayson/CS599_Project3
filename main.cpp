@@ -44,6 +44,7 @@ int main(int argc, char* argv[]) {
 }
 
 void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile) {
+	cout << "Aligning reads into buckets." << endl;
 	ifstream seqs;
 	seqs.open(seqFile);
 
@@ -115,7 +116,7 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 		double end = omp_get_wtime();
 		double duration = end - start;
 		cout << "Bucket " << counter << " took " << duration << " seconds." << endl;
-		cout << "Bucket " << counter << ") " << bucket->second->getReadCount() << endl;
+		cout << "Bucket " << counter << ": " << bucket->second->getReadCount() << " matching reads." << endl;
 
 
 		counter++;
@@ -160,7 +161,8 @@ bool extends(int readPos, string read, long int seqPos, ifstream* seqs) {
 
 //build map of speciesId to Bucket pointer from a fasta file
 map<string, Bucket*> getBucketList(char * filename) {
-
+	cout << "Sorting species into buckets." << endl;
+	double start = omp_get_wtime();
 	ifstream seqs;
 	seqs.open(filename);
 	map<string, Bucket*> bucketList;
@@ -219,6 +221,8 @@ map<string, Bucket*> getBucketList(char * filename) {
 		count++;
 	}
 	seqs.close();
-
+	double end = omp_get_wtime();
+	double duration = end - start;
+	cout << "Took " << duration << " seconds to place species into buckets." << endl;
 	return bucketList;
 }
