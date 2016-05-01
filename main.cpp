@@ -105,9 +105,8 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 					q = read.substr(++sel*K, K);
 				}
 			}else { // this is the sequence identifier
-				//getting our location+1 in the file is the address of the read we store in the object
+				//getting our location in the file is the address of the read we store in the object
 				readLocation = reads.tellg();
-				readLocation += sizeof(char);
 				label = read;
 			}
 		}
@@ -126,8 +125,8 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 
 //extends* function, checks if a read extends w/ M mismatches
 bool extends(int readPos, string read, long int seqPos, ifstream* seqs) {
+	//get the "would be" start position of the read in the sequence
 
-	//get the "would be" position of the read in the sequence
 	seqs->seekg(seqPos - readPos);
 
 	//get our string read as a classic char * C string
@@ -173,6 +172,7 @@ map<string, Bucket*> getBucketList(char * filename) {
 	string speciesId;
 	string desc;
 	int count;
+	long int currLoc;
 	//Loop through the lines in the file, storing in line string.
 	while ( getline(seqs, line) ){
 
@@ -205,13 +205,10 @@ map<string, Bucket*> getBucketList(char * filename) {
 				Bucket * b = new Bucket(speciesId); //make new bucket
 				bucketList.insert(pair<string, Bucket*>(speciesId, b)); //and insert it in the map
 			}
+			currLoc = seqs.tellg();
 		}else{ //else this is the actual nucleotide sequence
 				//The format of Fasta files guarantee that all variables
 				//Will be set by the previous line loop.
-			long int currLoc = seqs.tellg();
-			//current location is at the end of the sequence, so we set
-			//it to the beginning
-			currLoc -= (line.size()+1)*sizeof(char);
 
 			//create new sequence
 			Sequence* s = new Sequence(sequenceId, speciesId, currLoc, desc);
