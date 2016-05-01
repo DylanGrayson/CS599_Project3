@@ -20,21 +20,24 @@
 
 #define K 22
 #define M 3
+#define NUM_THREADS 3
 
 using namespace std;
 
 map<string, Bucket*> getBucketList(char * filename);
 void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile);
 bool extends(int readPos, string read, long int seqPos, ifstream* seqs);
+void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * readFile, int readNumber);
 
 //////////////////////////////////////////////////////
 ///////////////// MAIN ///////////////////////////////
 int main(int argc, char* argv[]) {
 	//Check that we have two inputs
 	if (argc == 3) {
+		cout << "Generating Buckets." << endl;
 		//build our map of buckets from the sequences file
 		map<string, Bucket*> b = getBucketList(argv[1]);
-
+		cout << "Distributing Reads." << endl;
 		//distribute our reads into the buckets
 		distributeReads(b, argv[1], argv[2]);
 	}else { //otherwise print help string
@@ -43,79 +46,127 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile) {
+// inputs for function:
+	//		- pointer to Bucket 
+	//		- sequence file mutex (apparently you don't need a mutex if you're only reading)
+	// 		- pointer to reads file
+	// 		- 
+void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * readFile, int readNumber){
 	ifstream seqs;
 	seqs.open(seqFile);
 
+	double start = omp_get_wtime();
+	//get the list of sequences from this bucket
+	list<Sequence*> seqList = bucket->second->getSeqList();
+	map<string, long int> *kmerList = new map<string, long int>;
+
+	for (list<Sequence*>::iterator seq = seqList.begin(); seq != seqList.end(); ++seq) {
+		long int location = (*seq)->getLocation();
+		seqs.seekg(location);
+		string line;
+
+		getline(seqs, line);
+
+		long int seqSize = line.size() - K + 1;
+
+		for (long int i = 0; i < seqSize; i++) {
+			kmerList->insert(pair<string, long int>( line.substr(i, K), location+i) );
+		}
+	}
+	string read;
+	string label;
+	long int readLocation;
+	ifstream reads;
+
+	// Alternative Threading Location
+	// Function Input:
+	// 		- pointer to bucket
+	// 		- offset pointing to read location 
+	// 		- 
+	reads.open(readFile);
+
+	while ( getline(reads, read)) { //loop through every line of reads file
+		if (read[0] != '>'){ //if this is the actual nucleotide sequence
+
+			unsigned int sel = 0;
+			string q = read.substr(0, K);
+
+			while((sel+1)*K < read.size()) { //loop through every K sized chunk of the read
+				//try to find the current read in the kmer list
+				map<string, long int>::iterator kmer = kmerList->find(q);
+
+				//if it exists and it extends*
+				if (kmer != kmerList->end() && extends(sel*K, read, kmer->second, &seqs)) {
+					//we create the read object and insert it into the current bucket and break.
+					Read * r = new Read(label.substr(0, label.find(" ")), readLocation);
+					bucket->second->insertRead(r);
+					break;
+				}
+				q = read.substr(++sel*K, K);
+			}
+		}else { // this is the sequence identifier
+			//getting our location+1 in the file is the address of the read we store in the object
+			readLocation = reads.tellg();
+			readLocation += sizeof(char);
+			label = read;
+		}
+	}
+	reads.close();
+	delete kmerList;
+	double end = omp_get_wtime();
+	double duration = end - start;
+	printf("Bucket %d took %f seconds and has %d reads.\n", readNumber, duration, bucket->second->getReadCount());
+	//cout << "Bucket " << readNumber << " took " << duration << " seconds." << endl;
+	//cout << "Bucket " << readNumber << ") " << bucket->second->getReadCount() << endl;
+}
+
+void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile) {
+	printf("Processing...\n");
+	ifstream seqs;
+	
+
 	// for each bucket in our bucket list
 	int counter = 0;
+
+	thread threads[NUM_THREADS];
+	int nThreads = 0;
+	int threadToJoin = 0;
 
 	// For threading we might be able to take the entire contents of this for loop,
 	// and create a new function that takes in relevant data as inputs.
 	// For each iteration of the thread we can start a new thread?
 
+	// inputs for function:
+	//		- pointer to Bucket 
+	//		- sequence file mutex (apparently you don't need a mutex if you're only reading)
+	// 		- pointer to reads file
+	// 		- 
 	for (map<string, Bucket*>::iterator bucket = bList.begin(); bucket != bList.end(); ++bucket) {
-		double start = omp_get_wtime();
-		//get the list of sequences from this bucket
-		list<Sequence*> seqList = bucket->second->getSeqList();
-		map<string, long int> *kmerList = new map<string, long int>;
-
-		for (list<Sequence*>::iterator seq = seqList.begin(); seq != seqList.end(); ++seq) {
-			long int location = (*seq)->getLocation();
-			seqs.seekg(location);
-			string line;
-
-			getline(seqs, line);
-
-			long int seqSize = line.size() - K + 1;
-
-			//string *kmers = new string[seqSize];
-			for (long int i = 0; i < seqSize; i++) {
-				kmerList->insert(pair<string, long int>( line.substr(i, K), location+i) );
+		// join a thread to create a new one
+		if(nThreads >= NUM_THREADS){
+			if(threadToJoin >= NUM_THREADS){
+				threadToJoin = 0;
 			}
-			//kmerList->insert(kmerList->begin(), kmers, kmers + seqSize);
-			//delete[] kmers;
+			printf("Waiting to join thread #%d\n",threadToJoin);
+			// join threadToJoin
+			threads[threadToJoin].join();
+			// spawn a new thread and add it to the threads array
+			threads[threadToJoin] = std::thread(handleBucket, bucket, seqFile, readFile, counter);
+			// increment threadToJoin
+			threadToJoin++;
 		}
-		//sort(kmerList->begin(), kmerList->end());
-		string read;
-		string label;
-		long int readLocation;
-		ifstream reads;
+		// else create a new thread with the bucket
+		else {
+			printf("Spawning Thread for bucket #%d\n", counter);
+			// spawn a new thread and add it to the threads array
+			threads[nThreads] = std::thread(handleBucket, bucket, seqFile, readFile, counter);
+			// increment nThreads
+			//threads[nThreads].join();
+			nThreads++;
 
-		reads.open(readFile);
-
-		while ( getline(reads, read)) { //loop through every line of reads file
-			if (read[0] != '>'){ //if this is the actual nucleotide sequence
-
-				unsigned int sel = 0;
-				string q = read.substr(0, K);
-
-				while((sel+1)*K < read.size()) { //loop through every K sized chunk of the read
-					//try to find the current read in the kmer list
-					map<string, long int>::iterator kmer = kmerList->find(q);
-
-					//if it exists and it extends*
-					if (kmer != kmerList->end() && extends(sel*K, read, kmer->second, &seqs)) {
-						//we create the read object and insert it into the current bucket and break.
-						Read * r = new Read(label.substr(0, label.find(" ")), readLocation);
-						bucket->second->insertRead(r);
-						break;
-					}
-					q = read.substr(++sel*K, K);
-				}
-			}else { // this is the sequence identifier
-				//getting our location+1 in the file is the address of the read we store in the object
-				readLocation = reads.tellg();
-				readLocation += sizeof(char);
-				label = read;
-			}
 		}
-		reads.close();
-		delete kmerList;
-		double end = omp_get_wtime();
-		double duration = end - start;
-		cout << "Bucket " << counter << " took " << duration << " seconds." << endl;
-		cout << "Bucket " << counter << ") " << bucket->second->getReadCount() << endl;
+		printf("\tThread number %d spawned\n", counter);
+
 
 
 		counter++;
