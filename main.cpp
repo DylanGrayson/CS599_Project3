@@ -166,7 +166,7 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 
 //extends* function, checks if a read extends w/ M mismatches
 bool extends(int readPos, string read, long int seqPos, ifstream* seqs) {
-	//get the "would be" position of the read in the sequence
+	//get the "would be" start position of the read in the sequence
 	seqs->seekg(seqPos - readPos);
 	//get our string read as a classic char * C string
 	const char * cread = read.c_str();
