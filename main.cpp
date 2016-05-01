@@ -168,7 +168,6 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 		printf("\tThread number %d spawned\n", counter);
 
 
-
 		counter++;
 	}
 	seqs.close();
@@ -176,8 +175,8 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 
 //extends* function, checks if a read extends w/ M mismatches
 bool extends(int readPos, string read, long int seqPos, ifstream* seqs) {
+	//get the "would be" start position of the read in the sequence
 
-	//get the "would be" position of the read in the sequence
 	seqs->seekg(seqPos - readPos);
 
 	//get our string read as a classic char * C string
@@ -211,7 +210,8 @@ bool extends(int readPos, string read, long int seqPos, ifstream* seqs) {
 
 //build map of speciesId to Bucket pointer from a fasta file
 map<string, Bucket*> getBucketList(char * filename) {
-
+	cout << "Sorting species into buckets." << endl;
+	double start = omp_get_wtime();
 	ifstream seqs;
 	seqs.open(filename);
 	map<string, Bucket*> bucketList;
@@ -222,6 +222,7 @@ map<string, Bucket*> getBucketList(char * filename) {
 	string speciesId;
 	string desc;
 	int count;
+	long int currLoc;
 	//Loop through the lines in the file, storing in line string.
 	while ( getline(seqs, line) ){
 
@@ -254,13 +255,10 @@ map<string, Bucket*> getBucketList(char * filename) {
 				Bucket * b = new Bucket(speciesId); //make new bucket
 				bucketList.insert(pair<string, Bucket*>(speciesId, b)); //and insert it in the map
 			}
+			currLoc = seqs.tellg();
 		}else{ //else this is the actual nucleotide sequence
 				//The format of Fasta files guarantee that all variables
 				//Will be set by the previous line loop.
-			long int currLoc = seqs.tellg();
-			//current location is at the end of the sequence, so we set
-			//it to the beginning
-			currLoc -= (line.size()+1)*sizeof(char);
 
 			//create new sequence
 			Sequence* s = new Sequence(sequenceId, speciesId, currLoc, desc);
@@ -270,6 +268,8 @@ map<string, Bucket*> getBucketList(char * filename) {
 		count++;
 	}
 	seqs.close();
-
+	double end = omp_get_wtime();
+	double duration = end - start;
+	cout << "Took " << duration << " seconds to place species into buckets." << endl;
 	return bucketList;
 }
