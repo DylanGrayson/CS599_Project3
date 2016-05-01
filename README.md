@@ -6,9 +6,9 @@
 
 ####Project Intro:
 
-Recent advances in High Throughput Sequencing (HTS) technologies have made shotgun sequencing of complex environmental samples economically feasible. In theory, such approaches are capable of characterizing the entirety of a sample’s composition, simultaneously identifying all present eukaryotes (plants, animals, and fungi), prokaryotes, and viruses. The first and foremost challenge of metagenomic characterization of unknown samples is that of ‘binning’ sequence fragments (reads) to associate them with species potentially present in the sample. For this project, your goal will be to identify which sequence reads can be associated with which organisms with up to a predefined number of tolerated mismatches. 
+Recent advances in High Throughput Sequencing (HTS) technologies have made shotgun sequencing of complex environmental samples economically feasible. In theory, such approaches are capable of characterizing the entirety of a sample’s composition, simultaneously identifying all present eukaryotes (plants, animals, and fungi), prokaryotes, and viruses. The first and foremost challenge of metagenomic characterization of unknown samples is that of ‘binning’ sequence fragments (reads) to associate them with species potentially present in the sample. For this project, your goal will be to identify which sequence reads can be associated with which organisms with up to a predefined number of tolerated mismatches.
 
-At its core, this is a counting exercise – how many sequence read fragments are suggesting presence of any given candidate organism. Any given read can simultaneously belong to multiple species bins or to none (with up to M mismatches). 
+At its core, this is a counting exercise – how many sequence read fragments are suggesting presence of any given candidate organism. Any given read can simultaneously belong to multiple species bins or to none (with up to M mismatches).
 
 ####Inputs:
 
@@ -30,3 +30,15 @@ At its core, this is a counting exercise – how many sequence read fragments ar
 * You must provide extensive documentation on all classes / functions that you create, as well as documentation for all external libraries you are incorporating into your project.
 
 * You must provide benchmarks and time /space estimates on the performance of your pipeline.
+
+#### Compilation Instructions
+
+```
+g++ -o <output file> main.cpp -std=c++11 -lgomp
+```
+
+#### Usage Instructions
+
+```
+./<output file> <sequence file> <reads file>
+```

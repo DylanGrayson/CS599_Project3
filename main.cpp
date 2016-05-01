@@ -15,7 +15,8 @@
 #include <list>
 #include <algorithm>
 #include <thread>
-#include "Binning.hpp"
+#include <omp.h>
+#include "Buckets.hpp"
 
 #define K 22
 #define M 3
@@ -54,7 +55,7 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 	// For each iteration of the thread we can start a new thread?
 
 	for (map<string, Bucket*>::iterator bucket = bList.begin(); bucket != bList.end(); ++bucket) {
-
+		double start = omp_get_wtime();
 		//get the list of sequences from this bucket
 		list<Sequence*> seqList = bucket->second->getSeqList();
 		map<string, long int> *kmerList = new map<string, long int>;
@@ -111,8 +112,11 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 		}
 		reads.close();
 		delete kmerList;
-
+		double end = omp_get_wtime();
+		double duration = end - start;
+		cout << "Bucket " << counter << " took " << duration << " seconds." << endl;
 		cout << "Bucket " << counter << ") " << bucket->second->getReadCount() << endl;
+
 
 		counter++;
 	}
