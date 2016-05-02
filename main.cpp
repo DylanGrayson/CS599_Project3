@@ -13,14 +13,13 @@
 #include <fstream>
 #include <map>
 #include <list>
-#include <algorithm>
 #include <thread>
 #include <omp.h>
 #include "Buckets.hpp"
 
 #define K 22
 #define M 3
-#define NUM_THREADS 4
+#define NUM_THREADS 8
 
 using namespace std;
 
@@ -105,7 +104,7 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, list<Re
 	double end = omp_get_wtime();
 	double duration = end - start;
 	//printf("Species %s took %f seconds and has %d reads.\n", speciesId, duration, bucket->second->getReadCount());
-	cout << "Species " << bucket->first << ": " << bucket->second->getReadCount() << " [" << duration/NUM_THREADS << " sec]" << endl;
+	cout << "[" << duration/NUM_THREADS << " sec] Species " << bucket->first << ": " << bucket->second->getReadCount() <<  " reads matched " << bucket->second->getSeqCount() << " sequences" << endl;
 	//cout << "Bucket " << readNumber << ") " << bucket->second->getReadCount() << endl;
 }
 
