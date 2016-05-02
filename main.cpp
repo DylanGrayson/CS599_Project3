@@ -11,6 +11,8 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <string>
 #include <map>
 #include <list>
 #include <thread>
@@ -103,9 +105,9 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, list<Re
 	delete kmerList;
 	double end = omp_get_wtime();
 	double duration = end - start;
-	//printf("Species %s took %f seconds and has %d reads.\n", speciesId, duration, bucket->second->getReadCount());
-	cout << "[" << duration/NUM_THREADS << " sec] Species " << bucket->first << ": " << bucket->second->getReadCount() <<  " reads matched " << bucket->second->getSeqCount() << " sequences" << endl;
-	//cout << "Bucket " << readNumber << ") " << bucket->second->getReadCount() << endl;
+	ostringstream strstrm;
+	strstrm << duration/NUM_THREADS;
+	cout << "[" + strstrm.str() + " sec] Species " + bucket->first + ": " + to_string(bucket->second->getReadCount()) +  " reads matched " + to_string(bucket->second->getSeqCount()) + " sequences\n";
 }
 
 list<Read*> getReadList(string filename) {
