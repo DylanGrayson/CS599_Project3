@@ -25,10 +25,10 @@
 using namespace std;
 
 map<string, Bucket*> getBucketList(char * filename);
-void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile);
+void distributeReads(map<string, Bucket*> bList, char * seqFile, list<Read*> *reads);
 bool extends(int readPos, string read, long int seqPos, ifstream* seqs);
-void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * readFile, int readNumber);
-
+void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, list<Read*> reads, int readNumber);
+list<Read*> getReadList(string filename);
 
 //////////////////////////////////////////////////////
 ///////////////// MAIN ///////////////////////////////
@@ -38,9 +38,11 @@ int main(int argc, char* argv[]) {
 		cout << "Generating Buckets." << endl;
 		//build our map of buckets from the sequences file
 		map<string, Bucket*> b = getBucketList(argv[1]);
+		cout << "Generating Reads list." << endl;
+		list<Read*> r = getReadList(argv[2]);
 		cout << "Distributing Reads." << endl;
 		//distribute our reads into the buckets
-		distributeReads(b, argv[1], argv[2]);
+		distributeReads(b, argv[1], &r);
 	}else { //otherwise print help string
 		cout << "USAGE: " << argv[0] << " <sequence file> <reads file>" << endl;
 	}
@@ -52,7 +54,7 @@ int main(int argc, char* argv[]) {
 	//		- sequence file mutex (apparently you don't need a mutex if you're only reading)
 	// 		- pointer to reads file
 	// 		-
-void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * readFile, int readNumber){
+void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, list<Read*> reads, int readNumber){
 	ifstream seqs;
 	seqs.open(seqFile);
 
@@ -74,44 +76,33 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * 
 			kmerList->insert(pair<string, long int>( line.substr(i, K), location+i) );
 		}
 	}
-	string read;
 	string label;
-	long int readLocation;
-	ifstream reads;
 
 	// Alternative Threading Location
 	// Function Input:
 	// 		- pointer to bucket
 	// 		- offset pointing to read location
 	// 		-
-	reads.open(readFile);
 
-	while ( getline(reads, read)) { //loop through every line of reads file
-		if (read[0] != '>'){ //if this is the actual nucleotide sequence
+	for (list<Read*>::iterator read = reads.begin(); read != reads.end(); ++read) {
 
 			unsigned int offset = K/2;
-			int readSize = read.size();
+			int readSize = (*read)->getSequence().size();
 			unsigned int startList[2] = {offset, readSize-K-offset};
 			for (int i = 0; i < 2; i++) {
-				string q = read.substr(startList[i], K);
+				string q = (*read)->getSequence().substr(startList[i], K);
 				map<string, long int>::iterator kmer = kmerList->find(q);
 				//if it exists and it extends*
-				if (kmer != kmerList->end() && extends(startList[i], read, kmer->second, &seqs)) {
+				if (kmer != kmerList->end() && extends(startList[i], (*read)->getSequence(), kmer->second, &seqs)) {
 					//we create the read object and insert it into the current bucket and break.
-					Read * r = new Read(label.substr(0, label.find(" ")), readLocation);
-					bucket->second->insertRead(r);
+
+					bucket->second->insertRead(*read);
 					break;
 				}
 			}
 
-		}else { // this is the sequence identifier
-			//getting our location+1 in the file is the address of the read we store in the object
-			readLocation = reads.tellg();
-			readLocation += sizeof(char);
-			label = read;
-		}
 	}
-	reads.close();
+
 	delete kmerList;
 	double end = omp_get_wtime();
 	double duration = end - start;
@@ -120,7 +111,25 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * 
 	//cout << "Bucket " << readNumber << ") " << bucket->second->getReadCount() << endl;
 }
 
-void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile) {
+list<Read*> getReadList(string filename) {
+	ifstream reads;
+	reads.open(filename);
+	string read;
+	list<Read*> readList;
+	while(getline(reads, read) ) {
+		if (read[0] == '>') {
+			string label = read.substr(0, read.find(" "));
+			string seq;
+			getline(reads, seq);
+			Read* r = new Read(label, seq);
+			readList.push_back(r);
+		}
+	}
+	return readList;
+}
+			
+
+void distributeReads(map<string, Bucket*> bList, char * seqFile, list<Read*> *reads) {
 	printf("Processing...\n");
 	ifstream seqs;
 
@@ -151,7 +160,7 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 			// join threadToJoin
 			threads[threadToJoin].join();
 			// spawn a new thread and add it to the threads array
-			threads[threadToJoin] = std::thread(handleBucket, bucket, seqFile, readFile, counter);
+			threads[threadToJoin] = std::thread(handleBucket, bucket, seqFile, *reads, counter);
 			// increment threadToJoin
 			threadToJoin++;
 		}
@@ -159,7 +168,7 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 		else {
 			//printf("Spawning Thread for bucket #%d\n", counter);
 			// spawn a new thread and add it to the threads array
-			threads[nThreads] = std::thread(handleBucket, bucket, seqFile, readFile, counter);
+			threads[nThreads] = std::thread(handleBucket, bucket, seqFile, *reads, counter);
 			// increment nThreads
 			//threads[nThreads].join();
 			nThreads++;
