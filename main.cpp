@@ -19,7 +19,7 @@
 #include "Buckets.hpp"
 
 #define K 22
-#define M 4
+#define M 3
 #define NUM_THREADS 4
 
 using namespace std;
@@ -94,8 +94,6 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, list<Re
 				map<string, long int>::iterator kmer = kmerList->find(q);
 				//if it exists and it extends*
 				if (kmer != kmerList->end() && extends(startList[i], (*read)->getSequence(), kmer->second, &seqs)) {
-					//we create the read object and insert it into the current bucket and break.
-
 					bucket->second->insertRead(*read);
 					break;
 				}
@@ -106,8 +104,8 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, list<Re
 	delete kmerList;
 	double end = omp_get_wtime();
 	double duration = end - start;
-	printf("Bucket %d took %f seconds and has %d reads.\n", readNumber, duration, bucket->second->getReadCount());
-	//cout << "Bucket " << readNumber << " took " << duration << " seconds." << endl;
+	//printf("Species %s took %f seconds and has %d reads.\n", speciesId, duration, bucket->second->getReadCount());
+	cout << "Species " << bucket->first << ": " << bucket->second->getReadCount() << " [" << duration/NUM_THREADS << " sec]" << endl;
 	//cout << "Bucket " << readNumber << ") " << bucket->second->getReadCount() << endl;
 }
 
