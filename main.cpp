@@ -19,8 +19,8 @@
 #include "Buckets.hpp"
 
 #define K 22
-#define M 3
-#define NUM_THREADS 3
+#define M 4
+#define NUM_THREADS 20
 
 using namespace std;
 
@@ -47,10 +47,10 @@ int main(int argc, char* argv[]) {
 }
 
 // inputs for function:
-	//		- pointer to Bucket 
+	//		- pointer to Bucket
 	//		- sequence file mutex (apparently you don't need a mutex if you're only reading)
 	// 		- pointer to reads file
-	// 		- 
+	// 		-
 void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * readFile, int readNumber){
 	ifstream seqs;
 	seqs.open(seqFile);
@@ -81,8 +81,8 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * 
 	// Alternative Threading Location
 	// Function Input:
 	// 		- pointer to bucket
-	// 		- offset pointing to read location 
-	// 		- 
+	// 		- offset pointing to read location
+	// 		-
 	reads.open(readFile);
 
 	while ( getline(reads, read)) { //loop through every line of reads file
@@ -102,7 +102,9 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * 
 					bucket->second->insertRead(r);
 					break;
 				}
-				q = read.substr(++sel*K, K);
+				// Do a read for ever other Kmers value. This means approximately 50% is checked.
+				sel += K;
+				q = read.substr(sel, K);
 			}
 		}else { // this is the sequence identifier
 			//getting our location+1 in the file is the address of the read we store in the object
@@ -123,7 +125,7 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * 
 void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile) {
 	printf("Processing...\n");
 	ifstream seqs;
-	
+
 
 	// for each bucket in our bucket list
 	int counter = 0;
@@ -137,17 +139,17 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 	// For each iteration of the thread we can start a new thread?
 
 	// inputs for function:
-	//		- pointer to Bucket 
+	//		- pointer to Bucket
 	//		- sequence file mutex (apparently you don't need a mutex if you're only reading)
 	// 		- pointer to reads file
-	// 		- 
+	// 		-
 	for (map<string, Bucket*>::iterator bucket = bList.begin(); bucket != bList.end(); ++bucket) {
 		// join a thread to create a new one
 		if(nThreads >= NUM_THREADS){
 			if(threadToJoin >= NUM_THREADS){
 				threadToJoin = 0;
 			}
-			printf("Waiting to join thread #%d\n",threadToJoin);
+			//printf("Waiting to join thread #%d\n",threadToJoin);
 			// join threadToJoin
 			threads[threadToJoin].join();
 			// spawn a new thread and add it to the threads array
@@ -157,7 +159,7 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 		}
 		// else create a new thread with the bucket
 		else {
-			printf("Spawning Thread for bucket #%d\n", counter);
+			//printf("Spawning Thread for bucket #%d\n", counter);
 			// spawn a new thread and add it to the threads array
 			threads[nThreads] = std::thread(handleBucket, bucket, seqFile, readFile, counter);
 			// increment nThreads
@@ -165,7 +167,7 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 			nThreads++;
 
 		}
-		printf("\tThread number %d spawned\n", counter);
+		//printf("\tThread number %d spawned\n", counter);
 
 
 		counter++;
