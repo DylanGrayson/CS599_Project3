@@ -20,14 +20,14 @@
 
 #define K 22
 #define M 4
-#define NUM_THREADS 20
+#define NUM_THREADS 4
 
 using namespace std;
 
 map<string, Bucket*> getBucketList(char * filename);
 void distributeReads(map<string, Bucket*> bList, char * seqFile, list<Read*> *reads);
 bool extends(int readPos, string read, long int seqPos, ifstream* seqs);
-void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, list<Read*> reads, int readNumber);
+void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, list<Read*> *reads, int readNumber);
 list<Read*> getReadList(string filename);
 
 //////////////////////////////////////////////////////
@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
 	//		- sequence file mutex (apparently you don't need a mutex if you're only reading)
 	// 		- pointer to reads file
 	// 		-
-void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, list<Read*> reads, int readNumber){
+void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, list<Read*> *reads, int readNumber){
 	ifstream seqs;
 	seqs.open(seqFile);
 
@@ -84,7 +84,7 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, list<Re
 	// 		- offset pointing to read location
 	// 		-
 
-	for (list<Read*>::iterator read = reads.begin(); read != reads.end(); ++read) {
+	for (list<Read*>::iterator read = reads->begin(); read != reads->end(); ++read) {
 
 			unsigned int offset = K/2;
 			int readSize = (*read)->getSequence().size();
@@ -160,7 +160,7 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, list<Read*> *re
 			// join threadToJoin
 			threads[threadToJoin].join();
 			// spawn a new thread and add it to the threads array
-			threads[threadToJoin] = std::thread(handleBucket, bucket, seqFile, *reads, counter);
+			threads[threadToJoin] = std::thread(handleBucket, bucket, seqFile, reads, counter);
 			// increment threadToJoin
 			threadToJoin++;
 		}
@@ -168,7 +168,7 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, list<Read*> *re
 		else {
 			//printf("Spawning Thread for bucket #%d\n", counter);
 			// spawn a new thread and add it to the threads array
-			threads[nThreads] = std::thread(handleBucket, bucket, seqFile, *reads, counter);
+			threads[nThreads] = std::thread(handleBucket, bucket, seqFile, reads, counter);
 			// increment nThreads
 			//threads[nThreads].join();
 			nThreads++;
