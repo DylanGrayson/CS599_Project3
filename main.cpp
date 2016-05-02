@@ -19,7 +19,7 @@
 #include "Buckets.hpp"
 
 #define K 22
-#define M 4
+#define M 3
 #define NUM_THREADS 20
 
 using namespace std;
@@ -91,7 +91,7 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * 
 			unsigned int sel = 0;
 			string q = read.substr(0, K);
 
-			while((sel+1)*K < read.size()) { //loop through every K sized chunk of the read
+			while((sel+2)*K < read.size()) { //loop through every K sized chunk of the read
 				//try to find the current read in the kmer list
 				map<string, long int>::iterator kmer = kmerList->find(q);
 
@@ -103,8 +103,8 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * 
 					break;
 				}
 				// Do a read for ever other Kmers value. This means approximately 50% is checked.
-				sel += K;
-				q = read.substr(sel, K);
+				sel += 2;
+				q = read.substr(sel*K, K);
 			}
 		}else { // this is the sequence identifier
 			//getting our location+1 in the file is the address of the read we store in the object
