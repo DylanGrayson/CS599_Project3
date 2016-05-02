@@ -19,7 +19,7 @@
 #include "Buckets.hpp"
 
 #define K 22
-#define M 4
+#define M 3
 #define NUM_THREADS 20
 
 using namespace std;
@@ -102,6 +102,7 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * 
 					bucket->second->insertRead(r);
 					break;
 				}
+
 			}
 
 		}else { // this is the sequence identifier
