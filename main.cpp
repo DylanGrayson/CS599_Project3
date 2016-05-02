@@ -29,6 +29,7 @@ void distributeReads(map<string, Bucket*> bList, char * seqFile, char* readFile)
 bool extends(int readPos, string read, long int seqPos, ifstream* seqs);
 void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * readFile, int readNumber);
 
+
 //////////////////////////////////////////////////////
 ///////////////// MAIN ///////////////////////////////
 int main(int argc, char* argv[]) {
@@ -88,24 +89,21 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, char * 
 	while ( getline(reads, read)) { //loop through every line of reads file
 		if (read[0] != '>'){ //if this is the actual nucleotide sequence
 
-			unsigned int sel = 0;
-			string q = read.substr(0, K);
-
-			while((sel+1)*K < read.size()) { //loop through every K sized chunk of the read
-				//try to find the current read in the kmer list
+			unsigned int offset = K/2;
+			int readSize = read.size();
+			unsigned int startList[2] = {offset, readSize-K-offset};
+			for (int i = 0; i < 2; i++) {
+				string q = read.substr(startList[i], K);
 				map<string, long int>::iterator kmer = kmerList->find(q);
-
 				//if it exists and it extends*
-				if (kmer != kmerList->end() && extends(sel*K, read, kmer->second, &seqs)) {
+				if (kmer != kmerList->end() && extends(startList[i], read, kmer->second, &seqs)) {
 					//we create the read object and insert it into the current bucket and break.
 					Read * r = new Read(label.substr(0, label.find(" ")), readLocation);
 					bucket->second->insertRead(r);
 					break;
 				}
-				// Do a read for ever other Kmers value. This means approximately 50% is checked.
-				sel += K;
-				q = read.substr(sel, K);
 			}
+
 		}else { // this is the sequence identifier
 			//getting our location+1 in the file is the address of the read we store in the object
 			readLocation = reads.tellg();
