@@ -11,8 +11,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <sstream>
-#include <string>
 #include <map>
 #include <list>
 #include <thread>
@@ -87,27 +85,45 @@ void handleBucket(map<string, Bucket*>::iterator bucket, char * seqFile, list<Re
 
 	for (list<Read*>::iterator read = reads->begin(); read != reads->end(); ++read) {
 
-			unsigned int offset = K/2;
+			//unsigned int offset = K/2;
 			int readSize = (*read)->getSequence().size();
-			unsigned int startList[2] = {offset, readSize-K-offset};
-			for (int i = 0; i < 2; i++) {
-				string q = (*read)->getSequence().substr(startList[i], K);
+			string readStr = (*read)->getSequence();
+			//unsigned int startList[2] = {offset, readSize-K-offset};
+
+			unsigned int sel = 0;
+			string q = readStr.substr(0, K);
+
+			while((sel+1)*K < readSize) { //loop through every K sized chunk of the read
+				//try to find the current read in the kmer list
 				map<string, long int>::iterator kmer = kmerList->find(q);
+
 				//if it exists and it extends*
-				if (kmer != kmerList->end() && extends(startList[i], (*read)->getSequence(), kmer->second, &seqs)) {
+				if (kmer != kmerList->end() && extends(sel*K, (*read)->getSequence(), kmer->second, &seqs)) {
+					//we create the read object and insert it into the current bucket and break.
 					bucket->second->insertRead(*read);
 					break;
 				}
+				q = readStr.substr(++sel*K, K);
 			}
+			// for (int i = 0; i < 2; i++) {
+			// 	string q = (*read)->getSequence().substr(startList[i], K);
+			// 	map<string, long int>::iterator kmer = kmerList->find(q);
+			// 	//if it exists and it extends*
+			// 	if (kmer != kmerList->end() && extends(startList[i], (*read)->getSequence(), kmer->second, &seqs)) {
+			// 		bucket->second->insertRead(*read);
+			// 		break;
+			// 	}
+			// }
 
 	}
 
 	delete kmerList;
 	double end = omp_get_wtime();
 	double duration = end - start;
-	ostringstream strstrm;
-	strstrm << duration/NUM_THREADS;
-	cout << "[" + strstrm.str() + " sec] Species " + bucket->first + ": " + to_string(bucket->second->getReadCount()) +  " reads matched " + to_string(bucket->second->getSeqCount()) + " sequences\n";
+	//printf("Species %s took %f seconds and has %d reads.\n", speciesId, duration, bucket->second->getReadCount());
+	cout << typeid(bucket->first).name();
+	cout << "[" << duration/NUM_THREADS << " sec] Species " << bucket->first << ": " << bucket->second->getReadCount() <<  " reads matched " << bucket->second->getSeqCount() << " sequences" << endl;
+	//cout << "Bucket " << readNumber << ") " << bucket->second->getReadCount() << endl;
 }
 
 list<Read*> getReadList(string filename) {
