@@ -31,15 +31,15 @@ class Sequence {
 class Read {
 	public:
 		string readId;
-		long int getLocation() {
-			return this->readLoc;
+		string getSequence() {
+			return this->sequence;
 		}
-		Read(string rId, long int location) {
+		Read(string rId, string seq) {
 			readId = rId;
-			readLoc = location;
+			sequence = seq;
 		}
 	private:
-		long int readLoc;
+		string sequence;
 };
 
 //Bucket class contains a sequence list and a reads list
