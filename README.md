@@ -34,7 +34,7 @@ At its core, this is a counting exercise – how many sequence read fragments ar
 #### Compilation Instructions
 
 ```
-g++ -o <output file> main.cpp -std=c++11 -lgomp
+g++ -o <output file> main.cpp -std=c++11 -lgomp -pthread
 ```
 
 #### Usage Instructions
